@@ -1,0 +1,16 @@
+{
+  "name": "hyper-backup",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "t1": "biome lint --fix && biome format --fix"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  }
+}

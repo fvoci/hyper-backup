@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+SOCKET="/var/run/docker.sock"
+
+# 기본 UID/GID
+UID_TO_RUN=1001
+GID_TO_RUN=1001
+
+if [ -S "$SOCKET" ]; then
+  GID_TO_RUN=$(stat -c '%g' "$SOCKET")
+fi
+
+if [ "$START_ROOT" = "1" ]; then
+  echo "[ENTRYPOINT] START_ROOT=1, running as root"
+  exec hyper-backup
+fi
+
+echo "[ENTRYPOINT] Starting as UID:$UID_TO_RUN GID:$GID_TO_RUN"
+
+getent group ${GID_TO_RUN} >/dev/null 2>&1 || groupadd -g ${GID_TO_RUN} dockergroup
+id -u ${UID_TO_RUN} >/dev/null 2>&1 || useradd -u ${UID_TO_RUN} -g ${GID_TO_RUN} -m -d /home/hyper-backup hyper-backup
+
+chown -R ${UID_TO_RUN}:${GID_TO_RUN} /home/hyper-backup
+
+exec gosu ${UID_TO_RUN}:${GID_TO_RUN} hyper-backup

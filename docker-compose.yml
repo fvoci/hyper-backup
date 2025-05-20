@@ -77,8 +77,6 @@ services:
       - mongo
       - minio
     environment:
-      BACKUP_INTERVAL: 3600
-
       # MySQL
       MYSQL_HOST: mysql
       MYSQL_USER: root
@@ -107,6 +105,14 @@ services:
       RCLONE_CONFIG_MINIO_ENDPOINT: http://minio:9000
       RCLONE_CONFIG_MINIO_REGION: us-east-1
       RCLONE_CONFIG_MINIO_ENV_AUTH: false
+
+      # Traefik log rotation
+      TRAEFIK_LOG_FILE: /home/ubuntu/cloud-proxy/logs/access.json
+      PACK_UP_HYPER_BACKUP_1: /home/hyper-backup/
+
+    volumes:
+      - /home/ubuntu/cloud-proxy/logs:/home/ubuntu/cloud-proxy/logs
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   mysql_data:

@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  DOCKERFILE_PATH: ./Dockerfile
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Go binary (optional)
+        run: |
+          go mod download
+          go build -v -o hyper-backup main.go
+
+  check_if_version_upgraded:
+    name: Check if version upgraded
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      from_version: ${{ steps.check_version.outputs.from_version }}
+      to_version: ${{ steps.check_version.outputs.to_version }}
+      is_upgraded_version: ${{ steps.check_version.outputs.is_upgraded_version }}
+      is_pre_release: ${{ steps.check_version.outputs.is_pre_release }}
+    steps:
+      - uses: garronej/ts-ci@v2.1.5
+        id: check_version
+        with:
+          action_name: is_package_json_version_upgraded
+          branch: ${{ github.head_ref || github.ref }}
+
+  build_and_push:
+    name: Build & Push multi-arch Docker image
+    runs-on: ubuntu-latest
+    needs: check_if_version_upgraded
+    if: needs.check_if_version_upgraded.outputs.is_upgraded_version == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push multi-arch image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:v${{ needs.check_if_version_upgraded.outputs.to_version }}
+
+  create_github_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [check_if_version_upgraded, build_and_push]
+    if: needs.check_if_version_upgraded.outputs.is_upgraded_version == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ needs.check_if_version_upgraded.outputs.to_version }}
+          tag_name: v${{ needs.check_if_version_upgraded.outputs.to_version }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ needs.check_if_version_upgraded.outputs.is_pre_release == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

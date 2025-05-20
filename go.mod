@@ -1,7 +1,10 @@
 module github.com/fvoci/hyper-backup
 
-go 1.24.3
+go 1.24
 
-replace github.com/fvoci/hyper-backup => .
+toolchain go1.24.3
 
-replace github.com/fvoci/hyper-backup/utile => ./utile
+require (
+	github.com/klauspost/compress v1.18.0
+	github.com/robfig/cron/v3 v3.0.1
+)

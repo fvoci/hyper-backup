@@ -5,7 +5,7 @@ FROM golang:1.24-bookworm AS builder
 ARG TARGETOS TARGETARCH
 
 WORKDIR /app
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
@@ -28,7 +28,7 @@ WORKDIR /home/hyper-backup
 
 # Dependencies
 RUN apt-get update && apt-get install -y \
-    ca-certificates curl wget gnupg lsb-release \
+    ca-certificates curl wget gnupg lsb-release gosu \
     rsync rclone default-mysql-client postgresql-client \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -47,10 +47,8 @@ RUN set -eux; \
     rm -rf "${TMPDIR}"
 
 # Copy our hyper-backup binary into PATH
-COPY --from=builder /app/hyper-backup /usr/bin/hyper-backup
-RUN chmod +x /usr/bin/hyper-backup
+COPY --link --from=builder /app/hyper-backup /usr/bin/hyper-backup
+COPY --link entrypoint /usr/bin/entrypoint
 
-USER hyper-backup
-
-ENTRYPOINT ["hyper-backup"]
+ENTRYPOINT ["entrypoint"]
 

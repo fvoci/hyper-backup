@@ -1,9 +1,10 @@
-// backup/rclone.go
+// 📄backup/rclone.go
 
 package backup
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,11 +15,10 @@ import (
 
 const (
 	defaultRetentionDays = 14
-	defaultRegion        = "us-west-1"
+	defaultRegion        = "us-east-1"
 	backupDir            = "/home/hyper-backup"
 )
 
-// rcloneConfig holds configuration for rclone backup.
 type rcloneConfig struct {
 	Remote    string
 	Target    string
@@ -37,32 +37,32 @@ type rcloneConfig struct {
 func RunRclone() {
 	cfg, err := loadRcloneConfig()
 	if err != nil {
-		fmt.Printf("[Rclone] ❌ Configuration error: %v\n", err)
+		log.Printf("[Rclone] ❌ Configuration error: %v\n", err)
 		return
 	}
 
 	if !waitForHTTP(cfg.Endpoint, 30*time.Second) {
-		fmt.Println("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
+		log.Printf("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
 		return
 	}
 
 	// if err := cleanLocal(backupDir, cfg.Retention); err != nil {
-	// 	fmt.Printf("[Rclone] ⚠️ Local cleanup error: %v\n", err)
+	// 	log.Printf("[Rclone] ⚠️ Local cleanup error: %v\n", err)
 	// }
 
 	if err := cleanRemote(cfg); err != nil {
-		fmt.Printf("[Rclone] ⚠️ Remote cleanup error: %v\n", err)
+		log.Printf("[Rclone] ⚠️ Remote cleanup error: %v\n", err)
 	}
 
 	if err := copyBackup(cfg); err != nil {
-		fmt.Printf("[Rclone] ❌ Upload failed: %v\n", err)
+		log.Printf("[Rclone] ❌ Upload failed: %v\n", err)
 		return
 	}
 
-	fmt.Println("[Rclone] ✅ Backup completed successfully")
+	log.Printf("[Rclone] ✅ Backup completed successfully")
+	log.Printf("\n")
 }
 
-// loadRcloneConfig reads and validates environment variables for rclone.
 func loadRcloneConfig() (*rcloneConfig, error) {
 	remote := os.Getenv("RCLONE_REMOTE")
 	target := os.Getenv("RCLONE_PATH")
@@ -94,16 +94,15 @@ func loadRcloneConfig() (*rcloneConfig, error) {
 	}, nil
 }
 
-// waitForHTTP polls the given URL until it responds with status <500 or timeout.
 func waitForHTTP(url string, timeout time.Duration) bool {
-	fmt.Printf("[Rclone] ⏳ Waiting for S3 endpoint %s\n", url)
+	log.Printf("[Rclone] ⏳ Waiting for S3 endpoint %s\n", url)
 	client := &http.Client{Timeout: 5 * time.Second}
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
 		resp, err := client.Head(url)
 		if err == nil && resp.StatusCode < 500 {
-			fmt.Println("[Rclone] ✅ Endpoint is reachable")
+			log.Printf("[Rclone] ✅ Endpoint is reachable")
 			return true
 		}
 		time.Sleep(2 * time.Second)
@@ -114,14 +113,14 @@ func waitForHTTP(url string, timeout time.Duration) bool {
 // cleanLocal removes files older than the retention period from the local backup directory.
 // func cleanLocal(path string, days int) error {
 // 	cutoff := time.Now().AddDate(0, 0, -days)
-// 	fmt.Printf("[Rclone] 🧹 Cleaning local files older than %d days in %s\n", days, path)
+// 	log.Printf("[Rclone] 🧹 Cleaning local files older than %d days in %s\n", days, path)
 
 // 	return filepath.Walk(path, func(fp string, info os.FileInfo, err error) error {
 // 		if err != nil || info.IsDir() {
 // 			return err
 // 		}
 // 		if info.ModTime().Before(cutoff) {
-// 			fmt.Printf("[Rclone] 🗑️ Deleting local file: %s (modified: %s)\n",
+// 			log.Printf("[Rclone] 🗑️ Deleting local file: %s (modified: %s)\n",
 // 				fp, info.ModTime().Format(time.RFC3339))
 // 			return os.Remove(fp)
 // 		}
@@ -129,9 +128,8 @@ func waitForHTTP(url string, timeout time.Duration) bool {
 // 	})
 // }
 
-// cleanRemote deletes remote objects older than the retention period from the remote target.
 func cleanRemote(cfg *rcloneConfig) error {
-	fmt.Printf("[Rclone] 🧹 Cleaning remote files older than %d days at %s\n", cfg.Retention, cfg.Target)
+	log.Printf("[Rclone] 🧹 Cleaning remote files older than %d days at %s\n", cfg.Retention, cfg.Target)
 	age := fmt.Sprintf("%dd", cfg.Retention)
 	cmdArgs := []string{"delete", cfg.Target, "--min-age", age}
 	if cfgFile := os.Getenv("RCLONE_CONFIG_FILE"); cfgFile != "" {
@@ -140,14 +138,13 @@ func cleanRemote(cfg *rcloneConfig) error {
 	cmd := exec.Command("rclone", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("[Rclone] ⚠️ Remote cleanup failed: %v\nOutput:\n%s", err, out)
+		log.Printf("[Rclone] ⚠️ Remote cleanup failed: %v\nOutput:\n%s", err, out)
 	}
 	return err
 }
 
-// copyBackup uploads the local backup directory to the remote target via rclone.
 func copyBackup(cfg *rcloneConfig) error {
-	fmt.Printf("[Rclone] 🔄 Uploading %s to %s\n", backupDir, cfg.Target)
+	log.Printf("[Rclone] 🔄 Uploading %s to %s\n", backupDir, cfg.Target)
 	key := strings.ToUpper(cfg.Remote)
 
 	env := os.Environ()
@@ -167,7 +164,7 @@ func copyBackup(cfg *rcloneConfig) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("[Rclone] ❌ Upload error:\n%s\n", out)
+		log.Printf("[Rclone] ❌ Upload error:\n%s\n", out)
 	}
 	return err
 }

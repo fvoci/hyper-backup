@@ -1,12 +1,14 @@
-// backup/mongo.go
+// 📄 backup/database/mongo.go
 
 package backup
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -15,17 +17,14 @@ import (
 	"time"
 )
 
-// mongoConfig holds MongoDB backup settings loaded from environment variables.
 type mongoConfig struct {
-	URI       string // full MongoDB URI, e.g. "mongodb://user:pass@host:port/db"
+	URI       string
 	Host      string
 	Port      string
-	Database  string // specific database to dump; if empty dumps all
+	Database  string
 	BackupDir string
 }
 
-// loadMongoConfig reads and validates MongoDB backup settings.
-// Supports full URI via MONGO_URI or individual vars.
 func loadMongoConfig() (*mongoConfig, error) {
 	uri := os.Getenv("MONGO_URI")
 	host := os.Getenv("MONGO_HOST")
@@ -35,14 +34,11 @@ func loadMongoConfig() (*mongoConfig, error) {
 	if backupDir == "" {
 		backupDir = "/home/hyper-backup/mongo"
 	}
-
 	if uri != "" {
-		// validate URI
 		u, err := url.Parse(uri)
 		if err != nil {
 			return nil, fmt.Errorf("invalid MONGO_URI: %v", err)
 		}
-		// extract database path if present
 		database = strings.TrimPrefix(u.Path, "/")
 	} else {
 		if host == "" {
@@ -52,7 +48,6 @@ func loadMongoConfig() (*mongoConfig, error) {
 			port = "27017"
 		}
 	}
-
 	return &mongoConfig{
 		URI:       uri,
 		Host:      host,
@@ -62,15 +57,13 @@ func loadMongoConfig() (*mongoConfig, error) {
 	}, nil
 }
 
-// RunMongo performs a dump of MongoDB (single DB or entire cluster) and compresses it to tar.gz.
 func RunMongo() {
 	cfg, err := loadMongoConfig()
 	if err != nil {
-		fmt.Printf("[MongoDB] ❌ Configuration error: %v\n", err)
+		log.Printf("[MongoDB] ❌ Configuration error: %v", err)
 		return
 	}
 
-	// Prepare timestamps and paths
 	timestamp := time.Now().Format("20060102_150405")
 	dumpDir := filepath.Join(cfg.BackupDir, fmt.Sprintf("dump_%s", timestamp))
 	name := cfg.Database
@@ -80,48 +73,52 @@ func RunMongo() {
 	archive := fmt.Sprintf("%s_%s.tar.gz", name, timestamp)
 	archivePath := filepath.Join(cfg.BackupDir, archive)
 
-	// Ensure backup directory exists
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		fmt.Printf("[MongoDB] ❌ Failed to create backup directory: %v\n", err)
+		log.Printf("[MongoDB] ❌ Failed to create backup directory: %v", err)
 		return
 	}
 
-	fmt.Printf("[MongoDB] 🍃 Starting backup to %s\n", archivePath)
+	log.Printf("[MongoDB] 🍃 Starting backup to %s", archivePath)
 
-	// Build mongodump arguments
-	var args []string
-	if cfg.URI != "" {
-		args = []string{"--uri=" + cfg.URI, "--out=" + dumpDir}
-	} else {
-		args = []string{"--host=" + cfg.Host, "--port=" + cfg.Port, "--out=" + dumpDir}
-		if cfg.Database != "" {
-			args = append(args, "--db="+cfg.Database)
+	var out bytes.Buffer
+	dumpCmd := exec.Command("mongodump", buildMongodumpArgs(cfg, dumpDir)...)
+	dumpCmd.Stdout = &out
+	dumpCmd.Stderr = &out
+
+	if err := dumpCmd.Run(); err != nil {
+		log.Printf("[MongoDB] ❌ mongodump failed: %v", err)
+	}
+
+	for _, line := range strings.Split(out.String(), "\n") {
+		if strings.TrimSpace(line) != "" {
+			log.Printf("[MongoDB] 📄 %s", line)
 		}
 	}
 
-	dumpCmd := exec.Command("mongodump", args...)
-	dumpCmd.Stdout = os.Stdout
-	dumpCmd.Stderr = os.Stderr
-	if err := dumpCmd.Run(); err != nil {
-		fmt.Printf("[MongoDB] ❌ mongodump failed: %v\n", err)
-		return
-	}
-
-	// Compress dump directory to tar.gz
 	if err := createTarGz(archivePath, dumpDir); err != nil {
-		fmt.Printf("[MongoDB] ❌ Compression failed: %v\n", err)
+		log.Printf("[MongoDB] ❌ Compression failed: %v", err)
 		return
 	}
 
-	// Remove temporary dump directory
 	if err := os.RemoveAll(dumpDir); err != nil {
-		fmt.Printf("[MongoDB] ⚠️ Failed to remove dump directory: %v\n", err)
+		log.Printf("[MongoDB] ⚠️ Failed to remove dump directory: %v", err)
 	}
 
-	fmt.Println("[MongoDB] ✅ Backup completed successfully")
+	log.Printf("[MongoDB] ✅ Backup completed successfully")
+	log.Printf("\n")
 }
 
-// createTarGz creates a tar.gz archive from the source directory.
+func buildMongodumpArgs(cfg *mongoConfig, dumpDir string) []string {
+	if cfg.URI != "" {
+		return []string{"--uri=" + cfg.URI, "--out=" + dumpDir}
+	}
+	args := []string{"--host=" + cfg.Host, "--port=" + cfg.Port, "--out=" + dumpDir}
+	if cfg.Database != "" {
+		args = append(args, "--db="+cfg.Database)
+	}
+	return args
+}
+
 func createTarGz(target, sourceDir string) error {
 	file, err := os.Create(target)
 	if err != nil {

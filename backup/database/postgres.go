@@ -1,9 +1,10 @@
-// backup/postgres.go
+// 📄backup/postgres.go
 
 package backup
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -23,11 +24,8 @@ type postgresConfig struct {
 	UseDumpAll bool // when true, run pg_dumpall
 }
 
-// loadPostgresConfig reads and validates PostgreSQL backup settings.
-// Supports full DSN via POSTGRES_DSN or individual vars.
 // To back up entire cluster, set POSTGRES_DUMP_ALL=true.
 func loadPostgresConfig() (*postgresConfig, error) {
-	// Check for DSN override
 	dsn := os.Getenv("POSTGRES_DSN")
 
 	host := os.Getenv("POSTGRES_HOST")
@@ -42,13 +40,11 @@ func loadPostgresConfig() (*postgresConfig, error) {
 
 	useDumpAll := os.Getenv("POSTGRES_DUMP_ALL") == "true"
 
-	// If DSN is provided, parse it for validation
 	if dsn != "" {
 		if _, err := url.Parse(dsn); err != nil {
 			return nil, fmt.Errorf("invalid POSTGRES_DSN: %v", err)
 		}
 	} else {
-		// Validate required fields when DSN absent
 		if host == "" || user == "" || pass == "" {
 			return nil, fmt.Errorf("POSTGRES_HOST, POSTGRES_USER and POSTGRES_PASSWORD must be set")
 		}
@@ -73,27 +69,23 @@ func loadPostgresConfig() (*postgresConfig, error) {
 	}, nil
 }
 
-// RunPostgres performs a compressed dump of a PostgreSQL database or entire cluster.
 func RunPostgres() {
 	cfg, err := loadPostgresConfig()
 	if err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Configuration error: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Configuration error: %v\n", err)
 		return
 	}
 
-	// Ensure backup directory exists
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Failed to create backup directory: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Failed to create backup directory: %v\n", err)
 		return
 	}
 
-	// Prepare timestamp and file name
 	timestamp := time.Now().Format("20060102_150405")
 	var filename string
 	if cfg.UseDumpAll {
 		filename = fmt.Sprintf("all_%s.sql.gz", timestamp)
 	} else if cfg.dsn != "" {
-		// extract db name from DSN or default to 'dsn'
 		u, _ := url.Parse(cfg.dsn)
 		dbname := filepath.Base(u.Path)
 		if dbname == "" {
@@ -105,14 +97,12 @@ func RunPostgres() {
 	}
 	outputFile := filepath.Join(cfg.BackupDir, filename)
 
-	fmt.Printf("[PostgreSQL] 🐘 Starting backup to %s\n", outputFile)
+	log.Printf("[PostgreSQL] 🐘 Starting backup to %s\n", outputFile)
 
-	// Set PGPASSWORD if provided
 	if cfg.Password != "" {
 		os.Setenv("PGPASSWORD", cfg.Password)
 	}
 
-	// Build appropriate dump command
 	var cmd *exec.Cmd
 	if cfg.UseDumpAll {
 		if cfg.dsn != "" {
@@ -139,40 +129,38 @@ func RunPostgres() {
 		}
 	}
 
-	// Pipe to gzip
 	gzipCmd := exec.Command("gzip")
 	dumpOut, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Failed to pipe stdout: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Failed to pipe stdout: %v\n", err)
 		return
 	}
 	gzipCmd.Stdin = dumpOut
 
 	outFile, err := os.Create(outputFile)
 	if err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Failed to create output file: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Failed to create output file: %v\n", err)
 		return
 	}
 	defer outFile.Close()
 	gzipCmd.Stdout = outFile
 
-	// Start processes
 	if err := cmd.Start(); err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Dump start error: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Dump start error: %v\n", err)
 		return
 	}
 	if err := gzipCmd.Start(); err != nil {
-		fmt.Printf("[PostgreSQL] ❌ gzip start error: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ gzip start error: %v\n", err)
 		return
 	}
 
-	// Wait for completion
 	if err := cmd.Wait(); err != nil {
-		fmt.Printf("[PostgreSQL] ❌ Dump execution error: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ Dump execution error: %v\n", err)
 	}
 	if err := gzipCmd.Wait(); err != nil {
-		fmt.Printf("[PostgreSQL] ❌ gzip execution error: %v\n", err)
+		log.Printf("[PostgreSQL] ❌ gzip execution error: %v\n", err)
 	}
 
-	fmt.Println("[PostgreSQL] ✅ Backup completed successfully")
+	log.Printf("[PostgreSQL] ✅ Backup completed successfully")
+	log.Printf("\n")
 }
