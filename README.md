@@ -18,6 +18,7 @@
 ## 📦 환경 변수
 
 ### 🔧 데이터베이스
+
 | 환경변수 | 설명 |
 |----------|------|
 | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` | MySQL 설정 |
@@ -54,7 +55,8 @@
 |----------|------|
 | `BACKUP_SCHEDULE` | 크론 표현식 (예: `0 0 * * *`) |
 | `BACKUP_INTERVAL_HOURS` | 시간 간격 (예: `6`) |
-> `BACKUP_SCHEDULE` 가 우선이며, 없을 경우 `BACKUP_INTERVAL_HOURS`, 둘 다 없으면 매일 자정 실행
+
+> `BACKUP_SCHEDULE` 가 우선이며, 없을 경우 `BACKUP_INTERVAL_HOURS`, 둘 다 없으면 매일 자정 실행됩니다.
 
 ---
 
@@ -73,12 +75,14 @@ docker run --rm \
   -e AWS_SECRET_ACCESS_KEY=minioadmin \
   -v /var/run/docker.sock:/var/run/docker.sock \
   fvoci/hyper-backup
-
 ```
 
-## 🛡️ hyper-backup
+---
 
-**hyper-backup** is a container-friendly backup tool written in Go. It automatically backs up MySQL, PostgreSQL, MongoDB, Traefik logs, and user-specified folders, and uploads them to external S3-compatible storage using `rclone` or `rsync`.
+# 🛡️ hyper-backup (EN)
+
+**hyper-backup** is a container-friendly backup tool written in Go.
+It automatically backs up MySQL, PostgreSQL, MongoDB, Traefik logs, and user-specified folders, and uploads them to external S3-compatible storage using `rclone` or `rsync`.
 
 ---
 

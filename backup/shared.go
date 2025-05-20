@@ -1,10 +1,9 @@
-// 📄 backup/shared.go
-
 package backup
 
 import (
-	"log"
 	"os"
+
+	utiles "github.com/fvoci/hyper-backup/utilities"
 )
 
 type service struct {
@@ -18,15 +17,15 @@ func runServices(services []service) {
 	executed := 0
 	for _, svc := range services {
 		if shouldRun(svc.EnvKeys...) {
-			log.Printf("[%s] ▶️ Starting backup...", svc.Name)
-			svc.RunFunc()
+			utiles.Logger.Infof("[%s] ▶️ Starting backup...", svc.Name)
+			safeRun(svc.Name, svc.RunFunc)
 			executed++
 		} else if !svc.Optional {
-			log.Printf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
+			utiles.Logger.Infof("[%s] ⚠️ Required but not configured; skipping", svc.Name)
 		}
 	}
 	if executed == 0 {
-		log.Printf("🤷 No services matched conditions")
+		utiles.Logger.Warn("🤷 No services matched conditions")
 	}
 }
 
@@ -38,4 +37,14 @@ func shouldRun(keys ...string) bool {
 		}
 	}
 	return true
+}
+
+// safeRun executes a backup task and recovers from panics or errors
+func safeRun(name string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			utiles.Logger.Errorf("[%s] ❌ Panic during backup: %v", name, r)
+		}
+	}()
+	fn()
 }

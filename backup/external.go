@@ -1,17 +1,14 @@
-// 📄 backup/external.go
-
 package backup
 
 import (
-	"log"
-
 	"github.com/fvoci/hyper-backup/backup/folders"
 	storage "github.com/fvoci/hyper-backup/backup/storage"
+	utiles "github.com/fvoci/hyper-backup/utilities"
 )
 
 func RunExternalBackups() {
-	log.Printf("\n")
-	log.Printf("☁️ [External Backups]")
+	utiles.LogDivider()
+	utiles.Logger.Info("☁️ [External Backups]")
 
 	// Step 1: folder compression
 	folders.RunFileBackup()
