@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -14,6 +15,7 @@ var Logger = newLogger()
 
 func newLogger() *logrus.Logger {
 	log := logrus.New()
+
 	log.SetOutput(os.Stdout)
 
 	log.SetFormatter(&logrus.TextFormatter{
@@ -23,40 +25,19 @@ func newLogger() *logrus.Logger {
 		PadLevelText:    true,
 	})
 
-import (
-    "os"
-    "strings"
-    "github.com/sirupsen/logrus"
-)
-
-func newLogger() *logrus.Logger {
-    log := logrus.New()
-
-    log.SetOutput(os.Stdout)
-
-    log.SetFormatter(&logrus.TextFormatter{
-        ForceColors:     true,
-        FullTimestamp:   true,
-        TimestampFormat: "2006-01-02 15:04:05",
-        PadLevelText:    true,
-    })
-
-    // Set log level from LOG_LEVEL env (default: info)
-    levelStr := strings.ToLower(strings.TrimSpace(os.Getenv("LOG_LEVEL")))
-    if levelStr == "" {
-        log.SetLevel(logrus.InfoLevel)
-    } else {
-        level, err := logrus.ParseLevel(levelStr)
-        if err != nil {
-            log.Warnf("⚠️ Invalid LOG_LEVEL: %s. Falling back to info", levelStr)
-            log.SetLevel(logrus.InfoLevel)
-        } else {
-            log.SetLevel(level)
-        }
-    }
-
-    return log
-}
+	// Set log level from LOG_LEVEL env (default: info)
+	levelStr := strings.ToLower(strings.TrimSpace(os.Getenv("LOG_LEVEL")))
+	if levelStr == "" {
+		log.SetLevel(logrus.InfoLevel)
+	} else {
+		level, err := logrus.ParseLevel(levelStr)
+		if err != nil {
+			log.Warnf("⚠️ Invalid LOG_LEVEL: %s. Falling back to info", levelStr)
+			log.SetLevel(logrus.InfoLevel)
+		} else {
+			log.SetLevel(level)
+		}
+	}
 
 	return log
 }

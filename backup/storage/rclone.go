@@ -93,8 +93,12 @@ func waitForHTTP(url string, timeout time.Duration) bool {
 	for time.Now().Before(deadline) {
 		resp, err := client.Head(url)
 		if err == nil && resp.StatusCode < 500 {
+			resp.Body.Close()
 			utilities.Logger.Info("[Rclone] ✅ Endpoint is reachable")
 			return true
+		}
+		if resp != nil {
+			resp.Body.Close()
 		}
 		time.Sleep(2 * time.Second)
 	}

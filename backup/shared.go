@@ -29,7 +29,9 @@ func runServices(services []service) error {
 			}
 			executed++
 		} else if !svc.Optional {
-			utilities.Logger.Warnf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
+			msg := fmt.Errorf("required service not configured")
+			utilities.Logger.Errorf("[%s] ❌ %v", svc.Name, msg)
+			errs = append(errs, fmt.Errorf("%s: %w", svc.Name, msg))
 		}
 	}
 
