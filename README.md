@@ -79,7 +79,7 @@ docker run --rm \
 
 ---
 
-# 🛡️ hyper-backup (EN)
+## 🛡️ hyper-backup (English)
 
 **hyper-backup** is a container-friendly backup tool written in Go.
 It automatically backs up MySQL, PostgreSQL, MongoDB, Traefik logs, and user-specified folders, and uploads them to external S3-compatible storage using `rclone` or `rsync`.
