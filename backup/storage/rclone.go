@@ -141,7 +141,8 @@ func copyBackup(cfg *rcloneConfig) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		utilities.Logger.Errorf("[Rclone] ❌ Upload error:\n%s", out)
+		utilities.Logger.Errorf("[Rclone] ❌ Upload failed: %v", err)
+		utilities.Logger.Debugf("[Rclone] command output:\n%s", out)
 	}
 	return err
 }

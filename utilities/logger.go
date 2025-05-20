@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +20,7 @@ func newLogger() *logrus.Logger {
 	log.SetOutput(os.Stdout)
 
 	log.SetFormatter(&logrus.TextFormatter{
-		ForceColors:     true,
+		ForceColors:     isatty.IsTerminal(os.Stdout.Fd()) && os.Getenv("NO_COLOR") == "",
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
 		PadLevelText:    true,
