@@ -15,6 +15,55 @@
 
 ---
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Entrypoint
+    participant App as Main.go
+    participant Scheduler
+    participant Orchestrator as Service.go
+    participant MySQL
+    participant PostgreSQL
+    participant MongoDB
+    participant Traefik
+    participant Folder as FolderArchiver
+    participant Storage as Rclone/Rsync
+
+    Entrypoint->>App: exec hyper-backup (via gosu)
+    App->>Scheduler: Parse BACKUP_SCHEDULE or BACKUP_INTERVAL
+    Scheduler->>App: Wait for trigger
+    App->>Orchestrator: RunCoreServices()
+
+    alt If MYSQL_HOST is set
+        Orchestrator->>MySQL: RunMySQL()
+        MySQL->>MySQL: dump + gzip
+    end
+
+    alt If POSTGRES_HOST is set
+        Orchestrator->>PostgreSQL: RunPostgres()
+        PostgreSQL->>PostgreSQL: dump + gzip
+    end
+
+    alt If MONGO_HOST or MONGO_URI is set
+        Orchestrator->>MongoDB: RunMongo()
+        MongoDB->>MongoDB: mongodump + gzip + tar
+    end
+
+    alt If TRAEFIK_LOG_FILE is set
+        Orchestrator->>Traefik: LogrotateAndNotify()
+        Traefik->>Traefik: rotate + docker signal
+    end
+
+    App->>Folder: RunFileBackup()
+    Folder->>Folder: tar + zstd/gzip compression
+
+    App->>Storage: RunExternalBackups()
+    Storage->>Storage: rclone/rsync upload
+
+    Storage-->>App: ✅ Upload complete
+    App-->>Entrypoint: ✅ Backup cycle complete
+```
+
 ## 📦 환경 변수
 
 ### 🔧 데이터베이스
@@ -92,6 +141,55 @@ docker run --rm \
 * ✅ Automatic user privilege switching via `gosu`
 
 ---
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Entrypoint
+    participant App as Main.go
+    participant Scheduler
+    participant Orchestrator as Service.go
+    participant MySQL
+    participant PostgreSQL
+    participant MongoDB
+    participant Traefik
+    participant Folder as FolderArchiver
+    participant Storage as Rclone/Rsync
+
+    Entrypoint->>App: exec hyper-backup (via gosu)
+    App->>Scheduler: Parse BACKUP_SCHEDULE or BACKUP_INTERVAL
+    Scheduler->>App: Wait for trigger
+    App->>Orchestrator: RunCoreServices()
+
+    alt If MYSQL_HOST is set
+        Orchestrator->>MySQL: RunMySQL()
+        MySQL->>MySQL: dump + gzip
+    end
+
+    alt If POSTGRES_HOST is set
+        Orchestrator->>PostgreSQL: RunPostgres()
+        PostgreSQL->>PostgreSQL: dump + gzip
+    end
+
+    alt If MONGO_HOST or MONGO_URI is set
+        Orchestrator->>MongoDB: RunMongo()
+        MongoDB->>MongoDB: mongodump + gzip + tar
+    end
+
+    alt If TRAEFIK_LOG_FILE is set
+        Orchestrator->>Traefik: LogrotateAndNotify()
+        Traefik->>Traefik: rotate + docker signal
+    end
+
+    App->>Folder: RunFileBackup()
+    Folder->>Folder: tar + zstd/gzip compression
+
+    App->>Storage: RunExternalBackups()
+    Storage->>Storage: rclone/rsync upload
+
+    Storage-->>App: ✅ Upload complete
+    App-->>Entrypoint: ✅ Backup cycle complete
+```
 
 ## 📦 Environment Variables
 
