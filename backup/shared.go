@@ -54,7 +54,7 @@ func safeRunWithError(name string, fn func() error) (err error) {
 		if r := recover(); r != nil {
 			stack := debug.Stack()
 			utilities.Logger.Errorf("[%s] 💥 panic recovered: %v\n%s", name, r, stack)
-			err = fmt.Errorf("panic in [%s]: %v\n%s", name, r, stack)
+			err = fmt.Errorf("panic in [%s]: %v\n%s", name, r, string(stack))
 		}
 	}()
 	return fn()
