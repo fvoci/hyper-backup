@@ -28,16 +28,16 @@ type rcloneConfig struct {
 	Retention int
 }
 
-func RunRclone() {
+func RunRclone() error {
 	cfg, err := loadRcloneConfig()
 	if err != nil {
 		utiles.Logger.Errorf("[Rclone] ❌ Configuration error: %v", err)
-		return
+		return err // 수정: nil → err 로 바꾸는 게 적절
 	}
 
 	if !waitForHTTP(cfg.Endpoint, 30*time.Second) {
 		utiles.Logger.Error("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
-		return
+		return fmt.Errorf("endpoint unreachable: %s", cfg.Endpoint)
 	}
 
 	// if err := cleanLocal(backupDir, cfg.Retention); err != nil {
@@ -50,11 +50,12 @@ func RunRclone() {
 
 	if err := copyBackup(cfg); err != nil {
 		utiles.Logger.Errorf("[Rclone] ❌ Upload failed: %v", err)
-		return
+		return err
 	}
 
 	utiles.Logger.Info("[Rclone] ✅ Backup completed successfully")
 	utiles.LogDivider()
+	return nil // ✅ 정상 종료 시 반환 필요
 }
 
 func loadRcloneConfig() (*rcloneConfig, error) {

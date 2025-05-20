@@ -56,11 +56,11 @@ func loadMongoConfig() (*mongoConfig, error) {
 	}, nil
 }
 
-func RunMongo() {
+func RunMongo() error {
 	cfg, err := loadMongoConfig()
 	if err != nil {
 		utiles.Logger.Errorf("[MongoDB] ❌ Configuration error: %v", err)
-		return
+		return err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -74,7 +74,7 @@ func RunMongo() {
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		utiles.Logger.Errorf("[MongoDB] ❌ Failed to create backup directory: %v", err)
-		return
+		return err
 	}
 
 	utiles.Logger.Infof("[MongoDB] 🍃 Backing up database '%s' to: %s", name, archivePath)
@@ -86,6 +86,7 @@ func RunMongo() {
 
 	if err := dumpCmd.Run(); err != nil {
 		utiles.Logger.Errorf("[MongoDB] ❌ mongodump failed: %v", err)
+		return err
 	}
 
 	for _, line := range strings.Split(out.String(), "\n") {
@@ -100,7 +101,7 @@ func RunMongo() {
 
 	if err := createTarGz(archivePath, dumpDir); err != nil {
 		utiles.Logger.Errorf("[MongoDB] ❌ Compression failed: %v", err)
-		return
+		return err
 	}
 
 	if err := os.RemoveAll(dumpDir); err != nil {
@@ -109,6 +110,7 @@ func RunMongo() {
 
 	utiles.Logger.Infof("[MongoDB] ✅ Backup of '%s' completed successfully", name)
 	utiles.LogDivider()
+	return nil
 }
 
 func buildMongodumpArgs(cfg *mongoConfig, dumpDir string) []string {

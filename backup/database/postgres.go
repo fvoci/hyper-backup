@@ -67,16 +67,16 @@ func loadPostgresConfig() (*postgresConfig, error) {
 	}, nil
 }
 
-func RunPostgres() {
+func RunPostgres() error {
 	cfg, err := loadPostgresConfig()
 	if err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Configuration error: %v", err)
-		return
+		return err
 	}
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Failed to create backup directory: %v", err)
-		return
+		return err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -120,34 +120,37 @@ func RunPostgres() {
 	dumpOut, err := cmd.StdoutPipe()
 	if err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Failed to pipe stdout: %v", err)
-		return
+		return err
 	}
 	gzipCmd.Stdin = dumpOut
 
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Failed to create output file: %v", err)
-		return
+		return err
 	}
 	defer outFile.Close()
 	gzipCmd.Stdout = outFile
 
 	if err := cmd.Start(); err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Dump start error: %v", err)
-		return
+		return err
 	}
 	if err := gzipCmd.Start(); err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ gzip start error: %v", err)
-		return
+		return err
 	}
 
 	if err := cmd.Wait(); err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ Dump execution error: %v", err)
+		return err
 	}
 	if err := gzipCmd.Wait(); err != nil {
 		utiles.Logger.Errorf("[PostgreSQL] ❌ gzip execution error: %v", err)
+		return err
 	}
 
 	utiles.Logger.Info("[PostgreSQL] ✅ Backup completed successfully")
 	utiles.LogDivider()
+	return nil
 }

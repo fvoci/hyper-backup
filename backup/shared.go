@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"fmt"
 	"os"
 
 	utiles "github.com/fvoci/hyper-backup/utilities"
@@ -9,24 +10,37 @@ import (
 type service struct {
 	Name     string
 	EnvKeys  []string
-	RunFunc  func()
+	RunFunc  func() error
 	Optional bool
 }
 
-func runServices(services []service) {
+func runServices(services []service) error {
+	var errs []error
 	executed := 0
+
 	for _, svc := range services {
 		if shouldRun(svc.EnvKeys...) {
 			utiles.Logger.Infof("[%s] ▶️ Starting backup...", svc.Name)
-			safeRun(svc.Name, svc.RunFunc)
+			err := safeRunWithError(svc.Name, svc.RunFunc)
+			if err != nil {
+				utiles.Logger.Errorf("[%s] ❌ Backup failed: %v", svc.Name, err)
+				errs = append(errs, fmt.Errorf("%s: %w", svc.Name, err))
+			}
 			executed++
 		} else if !svc.Optional {
-			utiles.Logger.Infof("[%s] ⚠️ Required but not configured; skipping", svc.Name)
+			utiles.Logger.Warnf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
 		}
 	}
+
 	if executed == 0 {
 		utiles.Logger.Warn("🤷 No services matched conditions")
 	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("some services failed: %w", joinErrors(errs))
+	}
+
+	return nil
 }
 
 // shouldRun returns true if all listed environment variables are set
@@ -39,12 +53,24 @@ func shouldRun(keys ...string) bool {
 	return true
 }
 
-// safeRun executes a backup task and recovers from panics or errors
-func safeRun(name string, fn func()) {
+// safeRunWithError catches panic and wraps it into error
+func safeRunWithError(name string, fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			utiles.Logger.Errorf("[%s] ❌ Panic during backup: %v", name, r)
+			err = fmt.Errorf("panic recovered: %v", r)
 		}
 	}()
-	fn()
+	return fn()
+}
+
+// joinErrors formats multiple errors into one
+func joinErrors(errs []error) error {
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	msg := ""
+	for _, err := range errs {
+		msg += "\n- " + err.Error()
+	}
+	return fmt.Errorf("multiple errors:%s", msg)
 }

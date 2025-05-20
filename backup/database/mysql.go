@@ -74,16 +74,16 @@ func loadMySQLConfig() (*mysqlConfig, error) {
 	}, nil
 }
 
-func RunMySQL() {
+func RunMySQL() error {
 	cfg, err := loadMySQLConfig()
 	if err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ Configuration error: %v", err)
-		return
+		return err
 	}
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ Failed to create backup directory: %v", err)
-		return
+		return err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -105,34 +105,37 @@ func RunMySQL() {
 	dumpOut, err := dumpCmd.StdoutPipe()
 	if err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ Failed to get dump stdout: %v", err)
-		return
+		return err
 	}
 	gzipCmd.Stdin = dumpOut
 
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ Failed to create output file: %v", err)
-		return
+		return err
 	}
 	defer outFile.Close()
 	gzipCmd.Stdout = outFile
 
 	if err := dumpCmd.Start(); err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ mysqldump start error: %v", err)
-		return
+		return err
 	}
 	if err := gzipCmd.Start(); err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ gzip start error: %v", err)
-		return
+		return err
 	}
 
 	if err := dumpCmd.Wait(); err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ mysqldump execution error: %v", err)
+		return err
 	}
 	if err := gzipCmd.Wait(); err != nil {
 		utiles.Logger.Errorf("[MySQL] ❌ gzip execution error: %v", err)
+		return err
 	}
 
 	utiles.Logger.Info("[MySQL] ✅ Backup completed successfully")
 	utiles.LogDivider()
+	return nil
 }

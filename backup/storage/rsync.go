@@ -21,28 +21,28 @@ func loadRsyncConfig() (*rsyncConfig, error) {
 	}
 	return &rsyncConfig{Src: src, Dest: dest}, nil
 }
-
-func RunRsync() {
+func RunRsync() error {
 	cfg, err := loadRsyncConfig()
 	if err != nil {
 		utiles.Logger.Errorf("[Rsync] ❌ Configuration error: %v", err)
-		return
+		return err
 	}
 
 	utiles.Logger.Infof("[Rsync] 📁 Backing up local directory: %s → %s", cfg.Src, cfg.Dest)
 
 	if err := os.MkdirAll(cfg.Dest, 0755); err != nil {
 		utiles.Logger.Errorf("[Rsync] ❌ Failed to create destination directory: %v", err)
-		return
+		return err
 	}
 
 	cmd := exec.Command("rsync", "-a", "--delete", cfg.Src+"/", cfg.Dest+"/")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		utiles.Logger.Errorf("[Rsync] ❌ rsync execution failed: %v\nOutput:\n%s", err, string(output))
-		return
+		return err
 	}
 
 	utiles.Logger.Info("[Rsync] ✅ Local backup completed successfully")
 	utiles.LogDivider()
+	return nil
 }
