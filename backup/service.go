@@ -3,13 +3,13 @@ package backup
 import (
 	db "github.com/fvoci/hyper-backup/backup/database"
 	"github.com/fvoci/hyper-backup/backup/traefik"
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 // RunCoreServices executes core backup components and returns any error encountered.
 func RunCoreServices() error {
-	utiles.LogDivider()
-	utiles.Logger.Info("🔧 [Core Services]")
+	utilities.LogDivider()
+	utilities.Logger.Info("🔧 [Core Services]")
 
 	services := []service{
 		{

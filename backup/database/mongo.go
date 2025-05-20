@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type mongoConfig struct {
@@ -59,7 +59,7 @@ func loadMongoConfig() (*mongoConfig, error) {
 func RunMongo() error {
 	cfg, err := loadMongoConfig()
 	if err != nil {
-		utiles.Logger.Errorf("[MongoDB] ❌ Configuration error: %v", err)
+		utilities.Logger.Errorf("[MongoDB] ❌ Configuration error: %v", err)
 		return err
 	}
 
@@ -73,11 +73,11 @@ func RunMongo() error {
 	archivePath := filepath.Join(cfg.BackupDir, archive)
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		utiles.Logger.Errorf("[MongoDB] ❌ Failed to create backup directory: %v", err)
+		utilities.Logger.Errorf("[MongoDB] ❌ Failed to create backup directory: %v", err)
 		return err
 	}
 
-	utiles.Logger.Infof("[MongoDB] 🍃 Backing up database '%s' to: %s", name, archivePath)
+	utilities.Logger.Infof("[MongoDB] 🍃 Backing up database '%s' to: %s", name, archivePath)
 
 	var out bytes.Buffer
 	dumpCmd := exec.Command("mongodump", buildMongodumpArgs(cfg, dumpDir)...)
@@ -85,7 +85,7 @@ func RunMongo() error {
 	dumpCmd.Stderr = &out
 
 	if err := dumpCmd.Run(); err != nil {
-		utiles.Logger.Errorf("[MongoDB] ❌ mongodump failed: %v", err)
+		utilities.Logger.Errorf("[MongoDB] ❌ mongodump failed: %v", err)
 		return err
 	}
 
@@ -95,21 +95,21 @@ func RunMongo() error {
 			continue
 		}
 		if strings.Contains(line, "done dumping") || strings.Contains(line, "writing") {
-			utiles.Logger.Debugf("[MongoDB] 📄 %s", line)
+			utilities.Logger.Debugf("[MongoDB] 📄 %s", line)
 		}
 	}
 
 	if err := createTarGz(archivePath, dumpDir); err != nil {
-		utiles.Logger.Errorf("[MongoDB] ❌ Compression failed: %v", err)
+		utilities.Logger.Errorf("[MongoDB] ❌ Compression failed: %v", err)
 		return err
 	}
 
 	if err := os.RemoveAll(dumpDir); err != nil {
-		utiles.Logger.Warnf("[MongoDB] ⚠️ Failed to remove dump directory: %v", err)
+		utilities.Logger.Warnf("[MongoDB] ⚠️ Failed to remove dump directory: %v", err)
 	}
 
-	utiles.Logger.Infof("[MongoDB] ✅ Backup of '%s' completed successfully", name)
-	utiles.LogDivider()
+	utilities.Logger.Infof("[MongoDB] ✅ Backup of '%s' completed successfully", name)
+	utilities.LogDivider()
 	return nil
 }
 

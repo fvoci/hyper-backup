@@ -12,7 +12,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 // RunFileBackup compresses directories defined by PACK_UP_HYPER_BACKUP_* env vars.
@@ -31,7 +31,7 @@ func RunFileBackup() []string {
 		}
 
 		if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
-			utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: not a valid directory", src)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: not a valid directory", src)
 			continue
 		}
 
@@ -54,23 +54,23 @@ func RunFileBackup() []string {
 			outPath = filepath.Join(baseDir, fmt.Sprintf("%s_%s.tar.zst", name, timestamp))
 			err = compressToTarZst(src, outPath)
 		default:
-			utiles.Logger.Errorf("[Files] ❌ Unknown compression method: %s", method)
+			utilities.Logger.Errorf("[Files] ❌ Unknown compression method: %s", method)
 			continue
 		}
 
 		if err != nil {
-			utiles.Logger.Errorf("[Files] ❌ Failed to compress %s: %v", src, err)
+			utilities.Logger.Errorf("[Files] ❌ Failed to compress %s: %v", src, err)
 			continue
 		}
 
-		utiles.Logger.Infof("[Files] 📦 Packed %s → %s", src, outPath)
+		utilities.Logger.Infof("[Files] 📦 Packed %s → %s", src, outPath)
 		created = append(created, outPath)
 	}
 
 	if len(created) == 0 {
-		utiles.Logger.Info("[Files] 🤷 No folders were packed")
+		utilities.Logger.Info("[Files] 🤷 No folders were packed")
 	}
-	utiles.LogDivider()
+	utilities.LogDivider()
 	return created
 }
 
@@ -114,33 +114,33 @@ func compressToTarZst(srcDir, outFile string) error {
 func walkAndWriteTar(srcDir string, tw *tar.Writer) error {
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: stat error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: stat error: %v", path, err)
 			return nil
 		}
 		relPath, err := filepath.Rel(filepath.Dir(srcDir), path)
 		if err != nil {
-			utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: rel path error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: rel path error: %v", path, err)
 			return nil
 		}
 		hdr, err := tar.FileInfoHeader(info, "")
 		if err != nil {
-			utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: header error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: header error: %v", path, err)
 			return nil
 		}
 		hdr.Name = relPath
 		if err := tw.WriteHeader(hdr); err != nil {
-			utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: write header error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: write header error: %v", path, err)
 			return nil
 		}
 		if info.Mode().IsRegular() {
 			f, err := os.Open(path)
 			if err != nil {
-				utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: open error: %v", path, err)
+				utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: open error: %v", path, err)
 				return nil
 			}
 			defer f.Close()
 			if _, err := io.Copy(tw, f); err != nil {
-				utiles.Logger.Warnf("[Files] ⚠️ Skipping %s: copy error: %v", path, err)
+				utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: copy error: %v", path, err)
 			}
 		}
 		return nil

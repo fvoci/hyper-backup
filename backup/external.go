@@ -2,14 +2,14 @@ package backup
 
 import (
 	"github.com/fvoci/hyper-backup/backup/folders"
-	storage "github.com/fvoci/hyper-backup/backup/storage"
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/backup/storage"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 // RunExternalBackups runs folder compression and remote uploads via rclone/rsync.
 func RunExternalBackups() error {
-	utiles.LogDivider()
-	utiles.Logger.Info("☁️ [External Backups]")
+	utilities.LogDivider()
+	utilities.Logger.Info("☁️ [External Backups]")
 
 	// Folder backup doesn't return error (yet), so just run it first
 	folders.RunFileBackup()

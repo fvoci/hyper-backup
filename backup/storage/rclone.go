@@ -1,4 +1,4 @@
-package backup
+package storage
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 const (
@@ -31,30 +31,30 @@ type rcloneConfig struct {
 func RunRclone() error {
 	cfg, err := loadRcloneConfig()
 	if err != nil {
-		utiles.Logger.Errorf("[Rclone] ❌ Configuration error: %v", err)
+		utilities.Logger.Errorf("[Rclone] ❌ Configuration error: %v", err)
 		return err // 수정: nil → err 로 바꾸는 게 적절
 	}
 
 	if !waitForHTTP(cfg.Endpoint, 30*time.Second) {
-		utiles.Logger.Error("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
+		utilities.Logger.Error("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
 		return fmt.Errorf("endpoint unreachable: %s", cfg.Endpoint)
 	}
 
 	// if err := cleanLocal(backupDir, cfg.Retention); err != nil {
-	// 	utiles.Logger.Warnf("[Rclone] ⚠️ Local cleanup error: %v", err)
+	// 	utilities.Logger.Warnf("[Rclone] ⚠️ Local cleanup error: %v", err)
 	// }
 
 	if err := cleanRemote(cfg); err != nil {
-		utiles.Logger.Warnf("[Rclone] ⚠️ Remote cleanup error: %v", err)
+		utilities.Logger.Warnf("[Rclone] ⚠️ Remote cleanup error: %v", err)
 	}
 
 	if err := copyBackup(cfg); err != nil {
-		utiles.Logger.Errorf("[Rclone] ❌ Upload failed: %v", err)
+		utilities.Logger.Errorf("[Rclone] ❌ Upload failed: %v", err)
 		return err
 	}
 
-	utiles.Logger.Info("[Rclone] ✅ Backup completed successfully")
-	utiles.LogDivider()
+	utilities.Logger.Info("[Rclone] ✅ Backup completed successfully")
+	utilities.LogDivider()
 	return nil // ✅ 정상 종료 시 반환 필요
 }
 
@@ -90,14 +90,14 @@ func loadRcloneConfig() (*rcloneConfig, error) {
 }
 
 func waitForHTTP(url string, timeout time.Duration) bool {
-	utiles.Logger.Infof("[Rclone] ⏳ Waiting for S3 endpoint %s", url)
+	utilities.Logger.Infof("[Rclone] ⏳ Waiting for S3 endpoint %s", url)
 	client := &http.Client{Timeout: 5 * time.Second}
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
 		resp, err := client.Head(url)
 		if err == nil && resp.StatusCode < 500 {
-			utiles.Logger.Info("[Rclone] ✅ Endpoint is reachable")
+			utilities.Logger.Info("[Rclone] ✅ Endpoint is reachable")
 			return true
 		}
 		time.Sleep(2 * time.Second)
@@ -106,7 +106,7 @@ func waitForHTTP(url string, timeout time.Duration) bool {
 }
 
 func cleanRemote(cfg *rcloneConfig) error {
-	utiles.Logger.Infof("[Rclone] 🧹 Cleaning remote files older than %d days at %s", cfg.Retention, cfg.Target)
+	utilities.Logger.Infof("[Rclone] 🧹 Cleaning remote files older than %d days at %s", cfg.Retention, cfg.Target)
 	age := fmt.Sprintf("%dd", cfg.Retention)
 	cmdArgs := []string{"delete", cfg.Target, "--min-age", age}
 	if cfgFile := os.Getenv("RCLONE_CONFIG_FILE"); cfgFile != "" {
@@ -115,13 +115,13 @@ func cleanRemote(cfg *rcloneConfig) error {
 	cmd := exec.Command("rclone", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		utiles.Logger.Warnf("[Rclone] ⚠️ Remote cleanup failed: %v\nOutput:\n%s", err, out)
+		utilities.Logger.Warnf("[Rclone] ⚠️ Remote cleanup failed: %v\nOutput:\n%s", err, out)
 	}
 	return err
 }
 
 func copyBackup(cfg *rcloneConfig) error {
-	utiles.Logger.Infof("[Rclone] 🔄 Uploading %s to %s", backupDir, cfg.Target)
+	utilities.Logger.Infof("[Rclone] 🔄 Uploading %s to %s", backupDir, cfg.Target)
 	key := strings.ToUpper(cfg.Remote)
 
 	env := os.Environ()
@@ -141,7 +141,7 @@ func copyBackup(cfg *rcloneConfig) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		utiles.Logger.Errorf("[Rclone] ❌ Upload error:\n%s", out)
+		utilities.Logger.Errorf("[Rclone] ❌ Upload error:\n%s", out)
 	}
 	return err
 }

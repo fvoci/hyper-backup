@@ -1,11 +1,11 @@
-package backup
+package storage
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type rsyncConfig struct {
@@ -24,25 +24,25 @@ func loadRsyncConfig() (*rsyncConfig, error) {
 func RunRsync() error {
 	cfg, err := loadRsyncConfig()
 	if err != nil {
-		utiles.Logger.Errorf("[Rsync] ❌ Configuration error: %v", err)
+		utilities.Logger.Errorf("[Rsync] ❌ Configuration error: %v", err)
 		return err
 	}
 
-	utiles.Logger.Infof("[Rsync] 📁 Backing up local directory: %s → %s", cfg.Src, cfg.Dest)
+	utilities.Logger.Infof("[Rsync] 📁 Backing up local directory: %s → %s", cfg.Src, cfg.Dest)
 
 	if err := os.MkdirAll(cfg.Dest, 0755); err != nil {
-		utiles.Logger.Errorf("[Rsync] ❌ Failed to create destination directory: %v", err)
+		utilities.Logger.Errorf("[Rsync] ❌ Failed to create destination directory: %v", err)
 		return err
 	}
 
 	cmd := exec.Command("rsync", "-a", "--delete", cfg.Src+"/", cfg.Dest+"/")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		utiles.Logger.Errorf("[Rsync] ❌ rsync execution failed: %v\nOutput:\n%s", err, string(output))
+		utilities.Logger.Errorf("[Rsync] ❌ rsync execution failed: %v\nOutput:\n%s", err, string(output))
 		return err
 	}
 
-	utiles.Logger.Info("[Rsync] ✅ Local backup completed successfully")
-	utiles.LogDivider()
+	utilities.Logger.Info("[Rsync] ✅ Local backup completed successfully")
+	utilities.LogDivider()
 	return nil
 }

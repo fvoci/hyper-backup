@@ -1,6 +1,6 @@
 // 📄 utiles/checker.go
 
-package utiles
+package utilities
 
 import (
 	"os"

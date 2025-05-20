@@ -7,15 +7,15 @@ import (
 	"syscall"
 
 	"github.com/fvoci/hyper-backup/scheduler"
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 func main() {
-	utiles.Logger.Info("[HyperBackup] ⏱️ Backup process starting")
-	utiles.LogDivider()
+	utilities.Logger.Info("[HyperBackup] ⏱️ Backup process starting")
+	utilities.LogDivider()
 
-	if err := utiles.CheckConfig(); err != nil {
-		utiles.Logger.Fatalf("[HyperBackup] ❌ Configuration check failed: %v", err)
+	if err := utilities.CheckConfig(); err != nil {
+		utilities.Logger.Fatalf("[HyperBackup] ❌ Configuration check failed: %v", err)
 	}
 
 	// 컨텍스트 생성 및 종료 시그널 바인딩

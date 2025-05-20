@@ -3,8 +3,10 @@ package backup
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
 
-	utiles "github.com/fvoci/hyper-backup/utilities"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type service struct {
@@ -20,20 +22,20 @@ func runServices(services []service) error {
 
 	for _, svc := range services {
 		if shouldRun(svc.EnvKeys...) {
-			utiles.Logger.Infof("[%s] ▶️ Starting backup...", svc.Name)
+			utilities.Logger.Infof("[%s] ▶️ Starting backup...", svc.Name)
 			err := safeRunWithError(svc.Name, svc.RunFunc)
 			if err != nil {
-				utiles.Logger.Errorf("[%s] ❌ Backup failed: %v", svc.Name, err)
+				utilities.Logger.Errorf("[%s] ❌ Backup failed: %v", svc.Name, err)
 				errs = append(errs, fmt.Errorf("%s: %w", svc.Name, err))
 			}
 			executed++
 		} else if !svc.Optional {
-			utiles.Logger.Warnf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
+			utilities.Logger.Warnf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
 		}
 	}
 
 	if executed == 0 {
-		utiles.Logger.Warn("🤷 No services matched conditions")
+		utilities.Logger.Warn("🤷 No services matched conditions")
 	}
 
 	if len(errs) > 0 {
@@ -57,7 +59,9 @@ func shouldRun(keys ...string) bool {
 func safeRunWithError(name string, fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic recovered: %v", r)
+			stack := debug.Stack()
+			utilities.Logger.Errorf("[%s] 💥 panic recovered: %v\n%s", name, r, string(stack))
+			err = fmt.Errorf("panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 	return fn()
@@ -68,9 +72,9 @@ func joinErrors(errs []error) error {
 	if len(errs) == 1 {
 		return errs[0]
 	}
-	msg := ""
+	var b strings.Builder
 	for _, err := range errs {
-		msg += "\n- " + err.Error()
+		fmt.Fprintf(&b, "\n- %v", err)
 	}
-	return fmt.Errorf("multiple errors:%s", msg)
+	return fmt.Errorf("multiple errors:%s", b.String())
 }

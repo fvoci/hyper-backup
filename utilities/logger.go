@@ -1,4 +1,4 @@
-package utiles
+package utilities
 
 import (
 	"os"
@@ -24,6 +24,7 @@ func newLogger() *logrus.Logger {
 
 	return log
 }
+
 // LogDivider prints a visual divider line in the logs to separate log entries
 func LogDivider() {
 	Logger.Info("════════════════════════════════════════════════════════════════")
