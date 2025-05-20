@@ -32,17 +32,13 @@ func RunRclone() error {
 	cfg, err := loadRcloneConfig()
 	if err != nil {
 		utilities.Logger.Errorf("[Rclone] ❌ Configuration error: %v", err)
-		return err // 수정: nil → err 로 바꾸는 게 적절
+		return err
 	}
 
 	if !waitForHTTP(cfg.Endpoint, 30*time.Second) {
 		utilities.Logger.Error("[Rclone] ❌ S3 endpoint unreachable; skipping upload")
 		return fmt.Errorf("endpoint unreachable: %s", cfg.Endpoint)
 	}
-
-	// if err := cleanLocal(backupDir, cfg.Retention); err != nil {
-	// 	utilities.Logger.Warnf("[Rclone] ⚠️ Local cleanup error: %v", err)
-	// }
 
 	if err := cleanRemote(cfg); err != nil {
 		utilities.Logger.Warnf("[Rclone] ⚠️ Remote cleanup error: %v", err)
@@ -55,7 +51,7 @@ func RunRclone() error {
 
 	utilities.Logger.Info("[Rclone] ✅ Backup completed successfully")
 	utilities.LogDivider()
-	return nil // ✅ 정상 종료 시 반환 필요
+	return nil
 }
 
 func loadRcloneConfig() (*rcloneConfig, error) {

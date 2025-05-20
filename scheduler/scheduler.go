@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/fvoci/hyper-backup/backup"
@@ -11,41 +12,37 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func StartWithContext(ctx context.Context, schedule string, interval string) {
-	tzEnv := os.Getenv("TZ")
-	if tzEnv != "" {
-		if loc, err := time.LoadLocation(tzEnv); err == nil {
+func StartWithContext(ctx context.Context, schedule, interval string) {
+	if tzName := os.Getenv("TZ"); tzName != "" {
+		if loc, err := time.LoadLocation(tzName); err == nil {
 			time.Local = loc
 		} else {
-			utilities.Logger.Warnf("[HyperBackup] ⚠️ Invalid TZ '%s', falling back to system timezone: %v", tzEnv, err)
+			utilities.Logger.Warnf("[HyperBackup] ⚠️ Invalid TZ '%s', using system default: %v", tzName, err)
 		}
 	}
-	tz := time.Local.String()
-	utilities.Logger.Infof("[HyperBackup] 🌐 Timezone: %s", tz)
+	utilities.Logger.Infof("[HyperBackup] 🌐 Timezone: %s", time.Local.String())
 
 	switch {
 	case schedule != "":
-		startWithCronContext(ctx, schedule)
+		startWithCron(ctx, schedule)
 	case interval != "":
-		startWithIntervalContext(ctx, interval)
+		startWithInterval(ctx, interval)
 	default:
-		utilities.Logger.Info("[HyperBackup] ⚠️ No schedule configured, defaulting to daily at midnight")
-		startWithCronContext(ctx, "0 0 * * *")
+		utilities.Logger.Info("[HyperBackup] ⚠️ No schedule set. Defaulting to daily at midnight.")
+		startWithCron(ctx, "0 0 * * *")
 	}
 }
 
 func runBackupCycle(next time.Time) {
 	start := time.Now()
-
 	utilities.Logger.Info("🚀 [HyperBackup] Backup cycle started")
 	utilities.Logger.Infof("🕒 %s", start.Format("2006-01-02 15:04:05"))
 
 	if err := backup.RunCoreServices(); err != nil {
-		utilities.Logger.Errorf("[HyperBackup] ❌ Core service backup failed: %v", err)
+		utilities.Logger.Errorf("[HyperBackup] ❌ Core services failed: %v", err)
 	}
-
 	if err := backup.RunExternalBackups(); err != nil {
-		utilities.Logger.Errorf("[HyperBackup] ❌ External backup failed: %v", err)
+		utilities.Logger.Errorf("[HyperBackup] ❌ External backups failed: %v", err)
 	}
 
 	end := time.Now()
@@ -53,53 +50,58 @@ func runBackupCycle(next time.Time) {
 	utilities.Logger.Infof("🕒 %s (Duration: %s)", end.Format("2006-01-02 15:04:05"), end.Sub(start).Round(time.Second))
 
 	if !next.IsZero() {
-		utilities.Logger.Infof("📅 Next backup scheduled at: %s (%s)", next.Format("2006-01-02 15:04:05"), next.Location().String())
+		utilities.Logger.Infof("📅 Next backup at: %s (%s)", next.Format("2006-01-02 15:04:05"), next.Location())
 	}
-
 	utilities.LogDivider()
 }
 
-func startWithCronContext(ctx context.Context, schedule string) {
+func startWithCron(ctx context.Context, schedule string) {
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	sched, err := parser.Parse(schedule)
+	spec, err := parser.Parse(schedule)
 	if err != nil {
 		utilities.Logger.Fatalf("[HyperBackup] ❌ Invalid BACKUP_SCHEDULE '%s': %v", schedule, err)
 	}
 
-	next := sched.Next(time.Now().In(time.Local))
-	utilities.Logger.Infof("[HyperBackup] 🔁 Scheduling backups with cron: \"%s\"", schedule)
-	utilities.Logger.Infof("[HyperBackup] ⏳ Next backup at: %s (%s)", next.Format("2006-01-02 15:04:05"), next.Location().String())
+	var running int32
+	next := spec.Next(time.Now().In(time.Local))
+	utilities.Logger.Infof("[HyperBackup] 🔁 Using cron: \"%s\"", schedule)
+	utilities.Logger.Infof("[HyperBackup] ⏳ Next backup at: %s (%s)", next.Format("2006-01-02 15:04:05"), next.Location())
 	utilities.LogDivider()
 
 	c := cron.New(cron.WithParser(parser), cron.WithLocation(time.Local))
-	if _, addErr := c.AddFunc(schedule, func() {
-		nextRun := sched.Next(time.Now().In(time.Local))
-		runBackupCycle(nextRun)
-	}); addErr != nil {
-		utilities.Logger.Fatalf("[HyperBackup] ❌ Failed to add cron job: %v", addErr)
+	if _, err := c.AddFunc(schedule, func() {
+		if !atomic.CompareAndSwapInt32(&running, 0, 1) {
+			utilities.Logger.Warn("[HyperBackup] ⚠️ Backup still running. Skipping this cycle.")
+			return
+		}
+		defer atomic.StoreInt32(&running, 0)
+		runBackupCycle(spec.Next(time.Now().In(time.Local)))
+	}); err != nil {
+		utilities.Logger.Fatalf("[HyperBackup] ❌ Failed to schedule job: %v", err)
 	}
 
 	c.Start()
 	runBackupCycle(next)
 
 	<-ctx.Done()
-	utilities.Logger.Info("[HyperBackup] 🛑 Received shutdown signal. Stopping cron scheduler...")
+	utilities.Logger.Info("[HyperBackup] 🛑 Stopping cron scheduler...")
 	c.Stop()
-	utilities.Logger.Info("[HyperBackup] ✅ Scheduler stopped. Goodbye.")
+	utilities.Logger.Info("[HyperBackup] ✅ Scheduler stopped")
 }
 
-func startWithIntervalContext(ctx context.Context, hoursStr string) {
+func startWithInterval(ctx context.Context, hoursStr string) {
 	const fallback = 1
 	hours, err := strconv.Atoi(hoursStr)
 	if err != nil || hours < 1 {
-		utilities.Logger.Warnf("[HyperBackup] ⚠️ Invalid BACKUP_INTERVAL_HOURS '%s'; using default %d hour(s)", hoursStr, fallback)
+		utilities.Logger.Warnf("[HyperBackup] ⚠️ Invalid BACKUP_INTERVAL_HOURS '%s'. Using %d hour(s)", hoursStr, fallback)
 		hours = fallback
 	}
 
 	dur := time.Duration(hours) * time.Hour
-	utilities.Logger.Infof("[HyperBackup] 🔁 Scheduling backups every %d hour(s)", hours)
+	utilities.Logger.Infof("[HyperBackup] 🔁 Using interval: every %d hour(s)", hours)
 	utilities.LogDivider()
 
+	var running int32
 	next := time.Now().Add(dur)
 	runBackupCycle(next)
 
@@ -109,11 +111,16 @@ func startWithIntervalContext(ctx context.Context, hoursStr string) {
 	for {
 		select {
 		case <-ticker.C:
-			next = time.Now().Add(dur)
-			runBackupCycle(next)
+			if !atomic.CompareAndSwapInt32(&running, 0, 1) {
+				utilities.Logger.Warn("[HyperBackup] ⚠️ Backup still running. Skipping this cycle.")
+				continue
+			}
+			runBackupCycle(time.Now().Add(dur))
+			atomic.StoreInt32(&running, 0)
+
 		case <-ctx.Done():
-			utilities.Logger.Info("[HyperBackup] 🛑 Received shutdown signal. Stopping interval scheduler...")
-			utilities.Logger.Info("[HyperBackup] ✅ Scheduler stopped. Goodbye.")
+			utilities.Logger.Info("[HyperBackup] 🛑 Stopping interval scheduler...")
+			utilities.Logger.Info("[HyperBackup] ✅ Scheduler stopped")
 			return
 		}
 	}
