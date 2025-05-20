@@ -94,8 +94,18 @@ func startWithInterval(hoursStr string) {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		next = time.Now().Add(dur)
-		runBackupCycle(next)
+	// Create channel for termination signals
+	terminationCh := make(chan os.Signal, 1)
+	signal.Notify(terminationCh, syscall.SIGINT, syscall.SIGTERM)
+
+	for {
+		select {
+		case <-ticker.C:
+			next = time.Now().Add(dur)
+			runBackupCycle(next)
+		case <-terminationCh:
+			utiles.Logger.Info("[HyperBackup] Received termination signal, shutting down...")
+			return
+		}
 	}
 }
