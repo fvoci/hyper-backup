@@ -1,0 +1,39 @@
+# 📦 .github/dependabot.yml
+
+version: 2
+updates:
+  # 🔧 Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  # ⚙️ GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(actions)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # (Optional) Node.js (pnpm) - if you’re using it in `package.json`
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(js)"
+    groups:
+      js-dependencies:
+        patterns:
+          - "*"
