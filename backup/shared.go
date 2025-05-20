@@ -16,6 +16,12 @@ type service struct {
 	Optional bool
 }
 
+// runServices는 주어진 서비스 목록 중 환경 변수 조건을 만족하는 백업 서비스를 실행하고, 발생한 모든 오류를 결합하여 반환합니다.
+// 필수 서비스가 환경 변수로 구성되지 않은 경우에도 오류로 처리됩니다. 
+// 실행된 서비스가 없고 오류도 없는 경우 경고 로그를 남깁니다.
+//
+// 반환값:
+//   - 실행 중 발생한 모든 오류를 결합한 error. 오류가 없으면 nil을 반환합니다.
 func runServices(services []service) error {
 	var errs []error
 	executed := 0
@@ -42,6 +48,7 @@ func runServices(services []service) error {
 	return errors.Join(errs...)
 }
 
+// shouldRun은 주어진 모든 환경 변수 키가 설정되어 있는지 확인하여, 모두 설정되어 있으면 true를 반환합니다.
 func shouldRun(keys ...string) bool {
 	for _, k := range keys {
 		if os.Getenv(k) == "" {
@@ -51,6 +58,8 @@ func shouldRun(keys ...string) bool {
 	return true
 }
 
+// safeRunWithError는 주어진 함수 실행 중 발생하는 패닉을 복구하여 에러로 반환합니다.
+// 패닉이 발생하면 스택 트레이스와 함께 에러로 변환하며, 그렇지 않으면 함수의 반환 에러를 그대로 반환합니다.
 func safeRunWithError(name string, fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

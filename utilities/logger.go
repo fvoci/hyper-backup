@@ -14,6 +14,8 @@ import (
 // Log level can be overridden using the LOG_LEVEL environment variable.
 var Logger = newLogger()
 
+// newLogger는 표준 출력으로 로그를 출력하고, 텍스트 포맷터와 환경 변수 LOG_LEVEL에 따라 로그 레벨을 설정한 새로운 logrus.Logger 인스턴스를 반환합니다.
+// LOG_LEVEL이 유효하지 않으면 info 레벨로 기본 설정됩니다.
 func newLogger() *logrus.Logger {
 	log := logrus.New()
 
@@ -43,7 +45,7 @@ func newLogger() *logrus.Logger {
 	return log
 }
 
-// LogDivider prints a visual divider line in the logs to separate log entries
+// LogDivider는 로그에 시각적인 구분선을 출력하여 로그 항목을 구분합니다.
 func LogDivider() {
 	Logger.Info("════════════════════════════════════════════════════════════════")
 }

@@ -24,6 +24,9 @@ type mongoConfig struct {
 	BackupDir string
 }
 
+// loadMongoConfig는 환경 변수에서 MongoDB 백업 설정을 로드하여 mongoConfig 구조체를 반환합니다.
+// MONGO_URI가 설정된 경우 URI를 파싱하여 데이터베이스 이름을 추출하고, 그렇지 않으면 호스트와 포트 정보를 사용합니다.
+// 필수 값이 누락되었거나 URI가 잘못된 경우 오류를 반환합니다.
 func loadMongoConfig() (*mongoConfig, error) {
 	uri := os.Getenv("MONGO_URI")
 	host := os.Getenv("MONGO_HOST")
@@ -56,6 +59,9 @@ func loadMongoConfig() (*mongoConfig, error) {
 	}, nil
 }
 
+// RunMongo는 MongoDB 데이터베이스를 덤프하고 tar.gz 아카이브로 압축하여 백업을 수행한다.
+// 환경 변수에서 설정을 로드하고, 백업 디렉터리를 생성한 뒤, mongodump 명령을 실행하고, 결과를 압축한 후 임시 파일을 정리한다.
+// 백업 과정에서 오류가 발생하면 해당 오류를 반환한다.
 func RunMongo() error {
 	cfg, err := loadMongoConfig()
 	if err != nil {
@@ -113,6 +119,7 @@ func RunMongo() error {
 	return nil
 }
 
+// buildMongodumpArgs는 주어진 MongoDB 설정과 덤프 디렉터리를 기반으로 mongodump 명령어 인자 목록을 생성합니다.
 func buildMongodumpArgs(cfg *mongoConfig, dumpDir string) []string {
 	if cfg.URI != "" {
 		return []string{"--uri=" + cfg.URI, "--out=" + dumpDir}

@@ -23,6 +23,9 @@ type postgresConfig struct {
 	UseDumpAll bool
 }
 
+// loadPostgresConfig는 환경 변수에서 PostgreSQL 백업 설정을 읽어와 검증한 후 postgresConfig 구조체를 반환합니다.
+// DSN이 제공되면 이를 우선 사용하며, 그렇지 않은 경우 개별 연결 정보가 모두 설정되어 있어야 합니다.
+// 필수 값이 누락되었거나 DSN이 잘못된 경우 오류를 반환합니다.
 func loadPostgresConfig() (*postgresConfig, error) {
 	dsn := os.Getenv("POSTGRES_DSN")
 
@@ -67,6 +70,8 @@ func loadPostgresConfig() (*postgresConfig, error) {
 	}, nil
 }
 
+// RunPostgres는 환경 변수로 구성된 설정을 사용하여 PostgreSQL 데이터베이스의 백업을 수행하고, 압축된 백업 파일을 지정된 디렉터리에 저장합니다.
+// 백업 과정에서 오류가 발생하면 해당 오류를 반환합니다.
 func RunPostgres() error {
 	cfg, err := loadPostgresConfig()
 	if err != nil {

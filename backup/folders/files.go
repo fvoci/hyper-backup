@@ -16,7 +16,12 @@ import (
 )
 
 // RunFileBackup compresses directories defined by PACK_UP_HYPER_BACKUP_* env vars.
-// Returns a list of created archive file paths.
+// RunFileBackup는 환경 변수로 지정된 여러 디렉터리를 압축하여 아카이브 파일로 백업하고, 생성된 아카이브 파일 경로 목록을 반환합니다.
+//
+// 환경 변수 PACK_UP_HYPER_BACKUP_1, PACK_UP_HYPER_BACKUP_2 등으로 지정된 각 디렉터리를 순차적으로 읽어, 지정된 압축 방식(FILE_BACKUP_COMPRESSION, 기본값 "zstd")에 따라 압축합니다. 유효하지 않은 디렉터리나 알 수 없는 압축 방식은 건너뜁니다.
+//
+// 반환값:
+//   생성된 아카이브 파일의 전체 경로 목록을 반환합니다.
 func RunFileBackup() []string {
 	baseDir := "/home/hyper-backup/files"
 	_ = os.MkdirAll(baseDir, 0755)
@@ -111,6 +116,7 @@ func compressToTarZst(srcDir, outFile string) error {
 	return walkAndWriteTar(srcDir, tw)
 }
 
+// 개별 파일 처리 중 오류가 발생해도 전체 작업은 계속 진행됩니다.
 func walkAndWriteTar(srcDir string, tw *tar.Writer) error {
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

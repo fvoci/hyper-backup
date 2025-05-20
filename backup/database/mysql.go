@@ -22,6 +22,8 @@ type mysqlConfig struct {
 	BackupDir string
 }
 
+// loadMySQLConfig는 환경 변수에서 MySQL 백업에 필요한 설정을 로드하여 mysqlConfig 구조체를 반환합니다.
+// MYSQL_DSN이 설정된 경우 DSN을 파싱하여 연결 정보를 추출하며, 필수 값이 누락되면 오류를 반환합니다.
 func loadMySQLConfig() (*mysqlConfig, error) {
 	dsn := os.Getenv("MYSQL_DSN")
 	host := os.Getenv("MYSQL_HOST")
@@ -74,6 +76,9 @@ func loadMySQLConfig() (*mysqlConfig, error) {
 	}, nil
 }
 
+// RunMySQL는 MySQL 데이터베이스를 gzip으로 압축된 SQL 덤프 파일로 백업한다.
+// 환경 변수에서 백업 설정을 불러오고, 백업 디렉터리를 생성한 뒤 mysqldump와 gzip을 사용하여 백업 파일을 생성한다.
+// 백업 과정에서 오류가 발생하면 해당 오류를 반환한다.
 func RunMySQL() error {
 	cfg, err := loadMySQLConfig()
 	if err != nil {
