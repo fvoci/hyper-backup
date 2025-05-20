@@ -38,6 +38,7 @@ func LogrotateAndNotify() error {
 	} else {
 		utilities.Logger.Infof("[Traefik] 📤 Rotated log: %s", rotatedPath)
 		utilities.Logger.Info("[Traefik] ✅ Logrotate and signal complete.")
+		utilities.LogDivider()
 	}
 
 	return nil

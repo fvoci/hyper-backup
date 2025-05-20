@@ -11,13 +11,19 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		utilities.Logger.Error(err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	utilities.Logger.Info("[HyperBackup] ⏱️ Backup process starting")
 
 	if err := utilities.CheckConfig(); err != nil {
-		utilities.Logger.Fatalf("[HyperBackup] ❌ Configuration check failed: %v", err)
+		return err
 	}
 
-	// Create context and bind shutdown signals
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -25,8 +31,9 @@ func main() {
 	interval := os.Getenv("BACKUP_INTERVAL_HOURS")
 
 	if schedule != "" && interval != "" {
-		utilities.Logger.Warn("[HyperBackup] ⚠️ Both BACKUP_SCHEDULE and BACKUP_INTERVAL_HOURS set; BACKUP_SCHEDULE takes precedence.")
+		utilities.Logger.Warn("[HyperBackup] ⚠️ Both BACKUP_SCHEDULE and BACKUP_INTERVAL_HOURS are set. Using BACKUP_SCHEDULE.")
 	}
 
 	scheduler.StartWithContext(ctx, schedule, interval)
+	return nil
 }
