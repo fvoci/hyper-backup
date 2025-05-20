@@ -1,10 +1,7 @@
-// 📄backup/mysql.go
-
 package backup
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -12,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type mysqlConfig struct {
@@ -75,23 +74,23 @@ func loadMySQLConfig() (*mysqlConfig, error) {
 	}, nil
 }
 
-func RunMySQL() {
+func RunMySQL() error {
 	cfg, err := loadMySQLConfig()
 	if err != nil {
-		log.Printf("[MySQL] ❌ Configuration error: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ Configuration error: %v", err)
+		return err
 	}
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		log.Printf("[MySQL] ❌ Failed to create backup directory: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ Failed to create backup directory: %v", err)
+		return err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
 	filename := fmt.Sprintf("%s_%s.sql.gz", cfg.Database, timestamp)
 	outputFile := filepath.Join(cfg.BackupDir, filename)
 
-	log.Printf("[MySQL] 🐬 Backing up %s to %s\n", cfg.Database, outputFile)
+	utilities.Logger.Infof("[MySQL] 🐬 Backing up %s to %s", cfg.Database, outputFile)
 
 	dumpArgs := []string{
 		"-h", cfg.Host,
@@ -105,35 +104,38 @@ func RunMySQL() {
 	gzipCmd := exec.Command("gzip")
 	dumpOut, err := dumpCmd.StdoutPipe()
 	if err != nil {
-		log.Printf("[MySQL] ❌ Failed to get dump stdout: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ Failed to get dump stdout: %v", err)
+		return err
 	}
 	gzipCmd.Stdin = dumpOut
 
 	outFile, err := os.Create(outputFile)
 	if err != nil {
-		log.Printf("[MySQL] ❌ Failed to create output file: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ Failed to create output file: %v", err)
+		return err
 	}
 	defer outFile.Close()
 	gzipCmd.Stdout = outFile
 
 	if err := dumpCmd.Start(); err != nil {
-		log.Printf("[MySQL] ❌ mysqldump start error: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ mysqldump start error: %v", err)
+		return err
 	}
 	if err := gzipCmd.Start(); err != nil {
-		log.Printf("[MySQL] ❌ gzip start error: %v\n", err)
-		return
+		utilities.Logger.Errorf("[MySQL] ❌ gzip start error: %v", err)
+		return err
 	}
 
 	if err := dumpCmd.Wait(); err != nil {
-		log.Printf("[MySQL] ❌ mysqldump execution error: %v\n", err)
+		utilities.Logger.Errorf("[MySQL] ❌ mysqldump execution error: %v", err)
+		return err
 	}
 	if err := gzipCmd.Wait(); err != nil {
-		log.Printf("[MySQL] ❌ gzip execution error: %v\n", err)
+		utilities.Logger.Errorf("[MySQL] ❌ gzip execution error: %v", err)
+		return err
 	}
 
-	log.Printf("[MySQL] ✅ Backup completed successfully")
-	log.Printf("\n")
+	utilities.Logger.Info("[MySQL] ✅ Backup completed successfully")
+	utilities.LogDivider()
+	return nil
 }

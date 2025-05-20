@@ -5,13 +5,14 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/klauspost/compress/zstd"
+
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 // RunFileBackup compresses directories defined by PACK_UP_HYPER_BACKUP_* env vars.
@@ -30,7 +31,7 @@ func RunFileBackup() []string {
 		}
 
 		if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
-			log.Printf("[Files] ⚠️ Skipping %s: not a valid directory", src)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: not a valid directory", src)
 			continue
 		}
 
@@ -53,23 +54,23 @@ func RunFileBackup() []string {
 			outPath = filepath.Join(baseDir, fmt.Sprintf("%s_%s.tar.zst", name, timestamp))
 			err = compressToTarZst(src, outPath)
 		default:
-			log.Printf("[Files] ❌ Unknown compression method: %s", method)
+			utilities.Logger.Errorf("[Files] ❌ Unknown compression method: %s", method)
 			continue
 		}
 
 		if err != nil {
-			log.Printf("[Files] ❌ Failed to compress %s: %v", src, err)
+			utilities.Logger.Errorf("[Files] ❌ Failed to compress %s: %v", src, err)
 			continue
 		}
 
-		log.Printf("[Files] 📦 Packed %s → %s", src, outPath)
+		utilities.Logger.Infof("[Files] 📦 Packed %s → %s", src, outPath)
 		created = append(created, outPath)
 	}
 
 	if len(created) == 0 {
-		log.Printf("[Files] 🤷 No folders were packed")
+		utilities.Logger.Info("[Files] 🤷 No folders were packed")
 	}
-
+	utilities.LogDivider()
 	return created
 }
 
@@ -113,33 +114,33 @@ func compressToTarZst(srcDir, outFile string) error {
 func walkAndWriteTar(srcDir string, tw *tar.Writer) error {
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("[Files] ⚠️ Skipping %s: stat error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: stat error: %v", path, err)
 			return nil
 		}
 		relPath, err := filepath.Rel(filepath.Dir(srcDir), path)
 		if err != nil {
-			log.Printf("[Files] ⚠️ Skipping %s: rel path error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: rel path error: %v", path, err)
 			return nil
 		}
 		hdr, err := tar.FileInfoHeader(info, "")
 		if err != nil {
-			log.Printf("[Files] ⚠️ Skipping %s: header error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: header error: %v", path, err)
 			return nil
 		}
 		hdr.Name = relPath
 		if err := tw.WriteHeader(hdr); err != nil {
-			log.Printf("[Files] ⚠️ Skipping %s: write header error: %v", path, err)
+			utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: write header error: %v", path, err)
 			return nil
 		}
 		if info.Mode().IsRegular() {
 			f, err := os.Open(path)
 			if err != nil {
-				log.Printf("[Files] ⚠️ Skipping %s: open error: %v", path, err)
+				utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: open error: %v", path, err)
 				return nil
 			}
 			defer f.Close()
 			if _, err := io.Copy(tw, f); err != nil {
-				log.Printf("[Files] ⚠️ Skipping %s: copy error: %v", path, err)
+				utilities.Logger.Warnf("[Files] ⚠️ Skipping %s: copy error: %v", path, err)
 			}
 		}
 		return nil

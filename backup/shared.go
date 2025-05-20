@@ -1,36 +1,47 @@
-// 📄 backup/shared.go
-
 package backup
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"os"
+	"runtime/debug"
+
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type service struct {
 	Name     string
 	EnvKeys  []string
-	RunFunc  func()
+	RunFunc  func() error
 	Optional bool
 }
 
-func runServices(services []service) {
+func runServices(services []service) error {
+	var errs []error
 	executed := 0
+
 	for _, svc := range services {
 		if shouldRun(svc.EnvKeys...) {
-			log.Printf("[%s] ▶️ Starting backup...", svc.Name)
-			svc.RunFunc()
+			utilities.Logger.Infof("[%s] ▶️ Starting backup...", svc.Name)
+			if err := safeRunWithError(svc.Name, svc.RunFunc); err != nil {
+				utilities.Logger.Errorf("[%s] ❌ Backup failed: %v", svc.Name, err)
+				errs = append(errs, fmt.Errorf("%s: %w", svc.Name, err))
+			}
 			executed++
 		} else if !svc.Optional {
-			log.Printf("[%s] ⚠️ Required but not configured; skipping", svc.Name)
+			msg := fmt.Errorf("required service not configured")
+			utilities.Logger.Errorf("[%s] ❌ %v", svc.Name, msg)
+			errs = append(errs, fmt.Errorf("%s: %w", svc.Name, msg))
 		}
 	}
-	if executed == 0 {
-		log.Printf("🤷 No services matched conditions")
+
+	if executed == 0 && len(errs) == 0 {
+		utilities.Logger.Warn("🤷 No services matched conditions")
 	}
+
+	return errors.Join(errs...)
 }
 
-// shouldRun returns true if all listed environment variables are set
 func shouldRun(keys ...string) bool {
 	for _, k := range keys {
 		if os.Getenv(k) == "" {
@@ -38,4 +49,15 @@ func shouldRun(keys ...string) bool {
 		}
 	}
 	return true
+}
+
+func safeRunWithError(name string, fn func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			stack := debug.Stack()
+			utilities.Logger.Errorf("[%s] 💥 panic recovered: %v\n%s", name, r, stack)
+			err = fmt.Errorf("panic in [%s]: %v\n%s", name, r, string(stack))
+		}
+	}()
+	return fn()
 }

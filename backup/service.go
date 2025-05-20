@@ -1,22 +1,42 @@
-// 📄 backup/service.go
-
 package backup
 
 import (
-	"log"
-
 	db "github.com/fvoci/hyper-backup/backup/database"
 	"github.com/fvoci/hyper-backup/backup/traefik"
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
-func RunCoreServices() {
-	log.Printf("\n")
-	log.Printf("🔧 [Core Services]")
+// RunCoreServices executes core backup components and returns any error encountered.
+func RunCoreServices() error {
+	utilities.LogDivider()
+	utilities.Logger.Info("🔧 [Core Services]")
+
 	services := []service{
-		{"MySQL", []string{"MYSQL_HOST"}, db.RunMySQL, true},
-		{"PostgreSQL", []string{"POSTGRES_HOST"}, db.RunPostgres, true},
-		{"MongoDB", []string{"MONGO_HOST"}, db.RunMongo, true},
-		{"Traefik", []string{"TRAEFIK_LOG_FILE"}, traefik.LogrotateAndNotify, true},
+		{
+			Name:     "MySQL",
+			EnvKeys:  []string{"MYSQL_HOST"},
+			RunFunc:  db.RunMySQL,
+			Optional: true,
+		},
+		{
+			Name:     "PostgreSQL",
+			EnvKeys:  []string{"POSTGRES_HOST"},
+			RunFunc:  db.RunPostgres,
+			Optional: true,
+		},
+		{
+			Name:     "MongoDB",
+			EnvKeys:  []string{"MONGO_HOST"},
+			RunFunc:  db.RunMongo,
+			Optional: true,
+		},
+		{
+			Name:     "Traefik",
+			EnvKeys:  []string{"TRAEFIK_LOG_FILE"},
+			RunFunc:  traefik.LogrotateAndNotify,
+			Optional: true,
+		},
 	}
-	runServices(services)
+
+	return runServices(services)
 }

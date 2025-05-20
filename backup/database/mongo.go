@@ -1,5 +1,3 @@
-// 📄 backup/database/mongo.go
-
 package backup
 
 import (
@@ -8,13 +6,14 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fvoci/hyper-backup/utilities"
 )
 
 type mongoConfig struct {
@@ -57,11 +56,11 @@ func loadMongoConfig() (*mongoConfig, error) {
 	}, nil
 }
 
-func RunMongo() {
+func RunMongo() error {
 	cfg, err := loadMongoConfig()
 	if err != nil {
-		log.Printf("[MongoDB] ❌ Configuration error: %v", err)
-		return
+		utilities.Logger.Errorf("[MongoDB] ❌ Configuration error: %v", err)
+		return err
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -74,11 +73,11 @@ func RunMongo() {
 	archivePath := filepath.Join(cfg.BackupDir, archive)
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		log.Printf("[MongoDB] ❌ Failed to create backup directory: %v", err)
-		return
+		utilities.Logger.Errorf("[MongoDB] ❌ Failed to create backup directory: %v", err)
+		return err
 	}
 
-	log.Printf("[MongoDB] 🍃 Starting backup to %s", archivePath)
+	utilities.Logger.Infof("[MongoDB] 🍃 Backing up database '%s' to: %s", name, archivePath)
 
 	var out bytes.Buffer
 	dumpCmd := exec.Command("mongodump", buildMongodumpArgs(cfg, dumpDir)...)
@@ -86,26 +85,32 @@ func RunMongo() {
 	dumpCmd.Stderr = &out
 
 	if err := dumpCmd.Run(); err != nil {
-		log.Printf("[MongoDB] ❌ mongodump failed: %v", err)
+		utilities.Logger.Errorf("[MongoDB] ❌ mongodump failed: %v", err)
+		return err
 	}
 
 	for _, line := range strings.Split(out.String(), "\n") {
-		if strings.TrimSpace(line) != "" {
-			log.Printf("[MongoDB] 📄 %s", line)
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.Contains(line, "done dumping") || strings.Contains(line, "writing") {
+			utilities.Logger.Debugf("[MongoDB] 📄 %s", line)
 		}
 	}
 
 	if err := createTarGz(archivePath, dumpDir); err != nil {
-		log.Printf("[MongoDB] ❌ Compression failed: %v", err)
-		return
+		utilities.Logger.Errorf("[MongoDB] ❌ Compression failed: %v", err)
+		return err
 	}
 
 	if err := os.RemoveAll(dumpDir); err != nil {
-		log.Printf("[MongoDB] ⚠️ Failed to remove dump directory: %v", err)
+		utilities.Logger.Warnf("[MongoDB] ⚠️ Failed to remove dump directory: %v", err)
 	}
 
-	log.Printf("[MongoDB] ✅ Backup completed successfully")
-	log.Printf("\n")
+	utilities.Logger.Infof("[MongoDB] ✅ Backup of '%s' completed successfully", name)
+	utilities.LogDivider()
+	return nil
 }
 
 func buildMongodumpArgs(cfg *mongoConfig, dumpDir string) []string {

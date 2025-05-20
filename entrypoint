@@ -3,7 +3,6 @@ set -e
 
 SOCKET="/var/run/docker.sock"
 
-# 기본 UID/GID
 UID_TO_RUN=1001
 GID_TO_RUN=1001
 
