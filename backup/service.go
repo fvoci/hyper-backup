@@ -6,7 +6,7 @@ import (
 	"github.com/fvoci/hyper-backup/utilities"
 )
 
-// RunCoreServices executes core backup components and returns any error encountered.
+// RunCoreServices는 MySQL, PostgreSQL, MongoDB, Traefik 등 핵심 백업 서비스를 실행하고, 실행 중 발생한 오류를 반환합니다.
 func RunCoreServices() error {
 	utilities.LogDivider()
 	utilities.Logger.Info("🔧 [Core Services]")

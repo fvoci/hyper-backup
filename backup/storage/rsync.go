@@ -13,6 +13,8 @@ type rsyncConfig struct {
 	Dest string
 }
 
+// loadRsyncConfig는 환경 변수 RSYNC_SRC와 RSYNC_DEST에서 소스 및 대상 경로를 읽어 rsyncConfig를 반환합니다.
+// 두 환경 변수 중 하나라도 설정되어 있지 않으면 오류를 반환합니다.
 func loadRsyncConfig() (*rsyncConfig, error) {
 	src := os.Getenv("RSYNC_SRC")
 	dest := os.Getenv("RSYNC_DEST")
@@ -21,6 +23,8 @@ func loadRsyncConfig() (*rsyncConfig, error) {
 	}
 	return &rsyncConfig{Src: src, Dest: dest}, nil
 }
+// RunRsync는 환경 변수로 지정된 소스와 목적지 디렉터리를 사용하여 로컬 디렉터리 백업을 수행한다.
+// rsync 명령어를 실행하여 소스 디렉터리의 내용을 목적지로 동기화하며, 동기화 과정에서 오류가 발생하면 에러를 반환한다.
 func RunRsync() error {
 	cfg, err := loadRsyncConfig()
 	if err != nil {

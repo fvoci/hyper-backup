@@ -7,6 +7,12 @@ import (
 	"github.com/fvoci/hyper-backup/utilities"
 )
 
+// LogrotateAndNotify는 Traefik 로그 파일을 회전(로테이션)하고, Traefik 컨테이너에 USR1 시그널을 전송하여 로그 파일 변경을 알립니다.
+//
+// TRAEFIK_LOG_FILE 환경 변수가 설정되어 있지 않으면 오류를 반환하며, 로그 파일이 비어 있으면 아무 작업도 수행하지 않습니다.
+// 로그 회전 또는 시그널 전송 중 오류가 발생하면 해당 오류를 반환합니다.
+//
+// 성공적으로 완료되면 nil을 반환합니다.
 func LogrotateAndNotify() error {
 	utilities.Logger.Info("[Traefik] 🌀 Starting logrotate and notify process...")
 

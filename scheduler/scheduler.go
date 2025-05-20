@@ -16,7 +16,12 @@ import (
 // ctx: for graceful shutdown via cancellation.
 // schedule: cron expression (e.g., "0 0 * * *") — takes priority.
 // interval: hour-based string (e.g., "24") if cron is not used.
-// If neither is set, defaults to "0 0 * * *" (midnight).
+// StartWithContext는 주어진 컨텍스트와 스케줄 설정에 따라 백업 스케줄러를 시작합니다.
+//
+// 'schedule'이 크론 표현식으로 지정되면 크론 기반 스케줄러를, 'interval'이 지정되면 고정 간격 스케줄러를 사용합니다.
+// 둘 다 지정되지 않은 경우 매일 자정(크론 "0 0 * * *")에 백업을 실행합니다.
+// 'TZ' 환경 변수가 설정되어 있으면 해당 타임존을 적용하며, 유효하지 않을 경우 시스템 기본 타임존을 사용합니다.
+// 컨텍스트가 취소되면 스케줄러가 정상적으로 종료됩니다.
 func StartWithContext(ctx context.Context, schedule, interval string) {
 	if tzName := os.Getenv("TZ"); tzName != "" {
 		if loc, err := time.LoadLocation(tzName); err == nil {
@@ -38,6 +43,8 @@ func StartWithContext(ctx context.Context, schedule, interval string) {
 	}
 }
 
+// runBackupCycle는 백업 주기를 실행하고, 시작 및 종료 시간, 소요 시간, 다음 예약 백업 시간을 로그로 기록합니다.
+// 내부적으로 핵심 서비스와 외부 백업을 순차적으로 실행하며, 오류 발생 시 로그에 남깁니다.
 func runBackupCycle(next time.Time) {
 	start := time.Now()
 
@@ -61,6 +68,8 @@ func runBackupCycle(next time.Time) {
 	utilities.LogDivider()
 }
 
+// startWithCron는 주어진 cron 스케줄 문자열에 따라 백업 작업을 예약하고, 컨텍스트가 취소될 때까지 주기적으로 백업을 실행합니다.
+// 이전 백업이 아직 실행 중인 경우 중복 실행을 방지하며, 스케줄 파싱 오류 시 프로그램을 종료합니다.
 func startWithCron(ctx context.Context, schedule string) {
 	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	spec, err := parser.Parse(schedule)
@@ -102,6 +111,9 @@ func startWithCron(ctx context.Context, schedule string) {
 	utilities.Logger.Info("[HyperBackup] ✅ Scheduler stopped")
 }
 
+// startWithInterval는 지정된 시간 간격(시간 단위)마다 백업 작업을 실행하는 스케줄러를 시작합니다.
+// 컨텍스트가 취소되면 스케줄러를 안전하게 종료합니다.
+// 잘못된 간격 입력 시 기본값(1시간)을 사용하며, 이전 백업이 완료되지 않은 경우 중복 실행을 방지합니다.
 func startWithInterval(ctx context.Context, hoursStr string) {
 	const fallback = 1
 	hours, err := strconv.Atoi(hoursStr)
