@@ -159,4 +159,15 @@ docker run --rm \
   -e AWS_SECRET_ACCESS_KEY=minioadmin \
   -v /var/run/docker.sock:/var/run/docker.sock \
   fvoci/hyper-backup
-```
+docker run --rm \
+   -e MYSQL_HOST=db \
+   -e MYSQL_USER=root \
+   -e MYSQL_PASSWORD=secret \
+   -e MYSQL_DATABASE=testdb \
+   -e RCLONE_REMOTE=minio \
+   -e RCLONE_PATH=backup \
+   -e S3_ENDPOINT=http://minio:9000 \
+   -e AWS_ACCESS_KEY_ID=minioadmin \
+   -e AWS_SECRET_ACCESS_KEY=minioadmin \
+   -v /var/run/docker.sock:/var/run/docker.sock \
+   fvoci/hyper-backup
